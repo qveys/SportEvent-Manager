@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import FloatingLabelInput from '../../components/ui/FloatingLabelInput';
+import { FloatingLabelInput } from '../../components/ui/FloatingLabelInput';
+
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();

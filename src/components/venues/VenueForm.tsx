@@ -1,34 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Phone, Mail, Globe, Users, Ruler, Waves } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
-import { PlacesAutocomplete } from '../common/PlacesAutocomplete';
-import { usePlacesAutocomplete } from '../../hooks/usePlacesAutocomplete';
-import { useForm } from '../../hooks/useForm';
-import { FloatingLabelInput } from '../ui/FloatingLabelInput';
 import { Card } from '../common/Card';
-
-interface VenueFormData {
-  name: string;
-  type: string;
-  phone: string;
-  email: string;
-  website: string;
-  capacity: string;
-  lanes: string;
-  length: string;
-  width: string;
-  depth_min: string;
-  depth_max: string;
-  has_diving_boards: boolean;
-  has_timing_system: boolean;
-  is_indoor: boolean;
-  is_accessible: boolean;
-  notes: string;
-}
+import { AddressAutocomplete } from '../common/AddressAutocomplete';
+import { FloatingLabelInput } from '../ui/FloatingLabelInput';
+import { FloatingLabelSelect } from '../ui/FloatingLabelSelect';
+import { supabase } from '../../lib/supabaseClient';
 
 interface VenueFormProps {
-  initialData?: VenueFormData;
+  initialData?: any;
   venueId?: string;
   onSuccess?: () => void;
 }
@@ -36,106 +15,108 @@ interface VenueFormProps {
 export const VenueForm: React.FC<VenueFormProps> = ({ 
   initialData,
   venueId,
-  onSuccess 
+  onSuccess
 }) => {
   const navigate = useNavigate();
-  const { 
-    address, 
-    setAddress, 
-    addressComponents, 
-    handlePlaceSelect 
-  } = usePlacesAutocomplete();
-
-  const {
-    values,
-    errors,
-    isSubmitting,
-    handleChange,
-    handleSubmit,
-    setFieldValue
-  } = useForm<VenueFormData>({
-    initialValues: initialData || {
-      name: '',
-      type: 'pool',
-      phone: '',
-      email: '',
-      website: '',
-      capacity: '',
-      lanes: '',
-      length: '',
-      width: '',
-      depth_min: '',
-      depth_max: '',
-      has_diving_boards: false,
-      has_timing_system: false,
-      is_indoor: true,
-      is_accessible: true,
-      notes: ''
-    },
-    validate: (values) => {
-      const errors: Partial<Record<keyof VenueFormData, string>> = {};
-      
-      if (!values.name) {
-        errors.name = 'Name is required';
-      }
-      
-      if (!address) {
-        errors.address = 'Address is required';
-      }
-
-      if (values.email && !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(values.email)) {
-        errors.email = 'Invalid email address';
-      }
-
-      if (values.website && !/^https?:\/\/.+\..+/.test(values.website)) {
-        errors.website = 'Invalid website URL';
-      }
-
-      return errors;
-    },
-    onSubmit: async (values) => {
-      try {
-        const venueData = {
-          ...values,
-          address: addressComponents.street,
-          city: addressComponents.city,
-          postal_code: addressComponents.postalCode,
-          country: addressComponents.country,
-          capacity: values.capacity ? parseInt(values.capacity) : null,
-          lanes: values.lanes ? parseInt(values.lanes) : null,
-          length: values.length ? parseInt(values.length) : null,
-          width: values.width ? parseInt(values.width) : null,
-          depth_min: values.depth_min ? parseFloat(values.depth_min) : null,
-          depth_max: values.depth_max ? parseFloat(values.depth_max) : null,
-        };
-
-        if (venueId) {
-          // Update existing venue
-          const { error } = await supabase
-            .from('venues')
-            .update(venueData)
-            .eq('id', venueId);
-
-          if (error) throw error;
-        } else {
-          // Create new venue
-          const { error } = await supabase
-            .from('venues')
-            .insert([venueData]);
-
-          if (error) throw error;
-        }
-
-        onSuccess?.();
-        navigate('/venues');
-      } catch (error) {
-        console.error('Error saving venue:', error);
-      }
-    }
+  const [formData, setFormData] = useState({
+    name: initialData?.name || '',
+    type: initialData?.type || 'pool',
+    address: initialData?.address || '',
+    city: initialData?.city || '',
+    postal_code: initialData?.postal_code || '',
+    country: initialData?.country || '',
+    phone: initialData?.phone || '',
+    email: initialData?.email || '',
+    website: initialData?.website || '',
+    capacity: initialData?.capacity?.toString() || '',
+    lanes: initialData?.lanes?.toString() || '',
+    length: initialData?.length?.toString() || '',
+    width: initialData?.width?.toString() || '',
+    depth_min: initialData?.depth_min?.toString() || '',
+    depth_max: initialData?.depth_max?.toString() || '',
+    has_diving_boards: initialData?.has_diving_boards ?? false,
+    has_timing_system: initialData?.has_timing_system ?? false,
+    is_indoor: initialData?.is_indoor ?? true,
+    is_accessible: initialData?.is_accessible ?? true,
+    notes: initialData?.notes || ''
   });
 
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleAddressSelect = (addressData: {
+    formatted: string;
+    street: string;
+    city: string;
+    postalCode: string;
+    country: string;
+    coordinates: {
+      lat: number;
+      lng: number;
+    };
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      address: addressData.street,
+      city: addressData.city,
+      postal_code: addressData.postalCode,
+      country: addressData.country
+    }));
+    setCoordinates(addressData.coordinates);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const venueData = {
+        ...formData,
+        capacity: formData.capacity ? parseInt(formData.capacity) : null,
+        lanes: formData.lanes ? parseInt(formData.lanes) : null,
+        length: formData.length ? parseInt(formData.length) : null,
+        width: formData.width ? parseInt(formData.width) : null,
+        depth_min: formData.depth_min ? parseFloat(formData.depth_min) : null,
+        depth_max: formData.depth_max ? parseFloat(formData.depth_max) : null,
+        coordinates: coordinates 
+          ? `POINT(${coordinates.lng} ${coordinates.lat})`
+          : null
+      };
+
+      if (venueId) {
+        const { error } = await supabase
+          .from('venues')
+          .update(venueData)
+          .eq('id', venueId);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('venues')
+          .insert([venueData]);
+
+        if (error) throw error;
+      }
+
+      onSuccess?.();
+      navigate('/venues');
+    } catch (error) {
+      console.error('Erreur lors de l\'enregistrement du lieu:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Information */}
       <Card title="Basic Information">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -143,81 +124,59 @@ export const VenueForm: React.FC<VenueFormProps> = ({
             id="name"
             name="name"
             label="Venue Name"
-            value={values.name}
-            onChange={handleChange}
-            error={errors.name}
             required
-            icon={<Building2 className="h-5 w-5" />}
+            value={formData.name}
+            onChange={handleChange}
           />
-          <div>
-            <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Venue Type
-            </label>
-            <select
-              id="type"
-              name="type"
-              value={values.type}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="pool">Swimming Pool</option>
-              <option value="complex">Sports Complex</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
+          <FloatingLabelSelect
+            id="type"
+            name="type"
+            label="Venue Type"
+            value={formData.type}
+            onChange={handleChange}
+            options={[
+              { value: 'pool', label: 'Swimming Pool' },
+              { value: 'complex', label: 'Sports Complex' },
+              { value: 'other', label: 'Other' }
+            ]}
+          />
         </div>
       </Card>
 
       {/* Location */}
       <Card title="Location">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Address *
-            </label>
-            <PlacesAutocomplete
-              value={address}
-              onChange={setAddress}
-              onPlaceSelect={handlePlaceSelect}
+        <div className="space-y-6">
+          <AddressAutocomplete
+            value={formData.address}
+            onChange={(value) => setFormData(prev => ({ ...prev, address: value }))}
+            onAddressSelect={handleAddressSelect}
+            required
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FloatingLabelInput
+              id="city"
+              name="city"
+              label="City"
               required
-              error={errors.address}
-              className="mt-1"
+              value={formData.city}
+              onChange={handleChange}
             />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                City
-              </label>
-              <input
-                type="text"
-                value={addressComponents.city}
-                disabled
-                className="mt-1 block w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Postal Code
-              </label>
-              <input
-                type="text"
-                value={addressComponents.postalCode}
-                disabled
-                className="mt-1 block w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Country
-              </label>
-              <input
-                type="text"
-                value={addressComponents.country}
-                disabled
-                className="mt-1 block w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400"
-              />
-            </div>
+            <FloatingLabelInput
+              id="postal_code"
+              name="postal_code"
+              label="Postal Code"
+              required
+              value={formData.postal_code}
+              onChange={handleChange}
+            />
+            <FloatingLabelInput
+              id="country"
+              name="country"
+              label="Country"
+              required
+              value={formData.country}
+              onChange={handleChange}
+            />
           </div>
         </div>
       </Card>
@@ -230,20 +189,16 @@ export const VenueForm: React.FC<VenueFormProps> = ({
             name="phone"
             type="tel"
             label="Phone Number"
-            value={values.phone}
+            value={formData.phone}
             onChange={handleChange}
-            error={errors.phone}
-            icon={<Phone className="h-5 w-5" />}
           />
           <FloatingLabelInput
             id="email"
             name="email"
             type="email"
             label="Email"
-            value={values.email}
+            value={formData.email}
             onChange={handleChange}
-            error={errors.email}
-            icon={<Mail className="h-5 w-5" />}
           />
           <div className="md:col-span-2">
             <FloatingLabelInput
@@ -251,10 +206,8 @@ export const VenueForm: React.FC<VenueFormProps> = ({
               name="website"
               type="url"
               label="Website"
-              value={values.website}
+              value={formData.website}
               onChange={handleChange}
-              error={errors.website}
-              icon={<Globe className="h-5 w-5" />}
             />
           </div>
         </div>
@@ -268,40 +221,32 @@ export const VenueForm: React.FC<VenueFormProps> = ({
             name="capacity"
             type="number"
             label="Capacity"
-            value={values.capacity}
+            value={formData.capacity}
             onChange={handleChange}
-            error={errors.capacity}
-            icon={<Users className="h-5 w-5" />}
           />
           <FloatingLabelInput
             id="lanes"
             name="lanes"
             type="number"
             label="Number of Lanes"
-            value={values.lanes}
+            value={formData.lanes}
             onChange={handleChange}
-            error={errors.lanes}
-            icon={<Ruler className="h-5 w-5" />}
           />
           <FloatingLabelInput
             id="length"
             name="length"
             type="number"
             label="Length (meters)"
-            value={values.length}
+            value={formData.length}
             onChange={handleChange}
-            error={errors.length}
-            icon={<Ruler className="h-5 w-5" />}
           />
           <FloatingLabelInput
             id="width"
             name="width"
             type="number"
             label="Width (meters)"
-            value={values.width}
+            value={formData.width}
             onChange={handleChange}
-            error={errors.width}
-            icon={<Ruler className="h-5 w-5" />}
           />
           <FloatingLabelInput
             id="depth_min"
@@ -309,10 +254,8 @@ export const VenueForm: React.FC<VenueFormProps> = ({
             type="number"
             step="0.1"
             label="Minimum Depth (meters)"
-            value={values.depth_min}
+            value={formData.depth_min}
             onChange={handleChange}
-            error={errors.depth_min}
-            icon={<Waves className="h-5 w-5" />}
           />
           <FloatingLabelInput
             id="depth_max"
@@ -320,10 +263,8 @@ export const VenueForm: React.FC<VenueFormProps> = ({
             type="number"
             step="0.1"
             label="Maximum Depth (meters)"
-            value={values.depth_max}
+            value={formData.depth_max}
             onChange={handleChange}
-            error={errors.depth_max}
-            icon={<Waves className="h-5 w-5" />}
           />
         </div>
       </Card>
@@ -336,7 +277,7 @@ export const VenueForm: React.FC<VenueFormProps> = ({
               <input
                 type="checkbox"
                 name="has_diving_boards"
-                checked={values.has_diving_boards}
+                checked={formData.has_diving_boards}
                 onChange={handleChange}
                 className="rounded border-gray-300 dark:border-gray-600 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
@@ -348,7 +289,7 @@ export const VenueForm: React.FC<VenueFormProps> = ({
               <input
                 type="checkbox"
                 name="has_timing_system"
-                checked={values.has_timing_system}
+                checked={formData.has_timing_system}
                 onChange={handleChange}
                 className="rounded border-gray-300 dark:border-gray-600 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
@@ -360,7 +301,7 @@ export const VenueForm: React.FC<VenueFormProps> = ({
               <input
                 type="checkbox"
                 name="is_indoor"
-                checked={values.is_indoor}
+                checked={formData.is_indoor}
                 onChange={handleChange}
                 className="rounded border-gray-300 dark:border-gray-600 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
@@ -372,7 +313,7 @@ export const VenueForm: React.FC<VenueFormProps> = ({
               <input
                 type="checkbox"
                 name="is_accessible"
-                checked={values.is_accessible}
+                checked={formData.is_accessible}
                 onChange={handleChange}
                 className="rounded border-gray-300 dark:border-gray-600 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
@@ -388,9 +329,9 @@ export const VenueForm: React.FC<VenueFormProps> = ({
           id="notes"
           name="notes"
           rows={4}
-          value={values.notes}
+          value={formData.notes}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
         />
       </Card>
 
@@ -405,10 +346,10 @@ export const VenueForm: React.FC<VenueFormProps> = ({
         </button>
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={saving}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
-          {isSubmitting ? 'Saving...' : venueId ? 'Save Changes' : 'Create Venue'}
+          {saving ? 'Saving...' : venueId ? 'Save Changes' : 'Create Venue'}
         </button>
       </div>
     </form>

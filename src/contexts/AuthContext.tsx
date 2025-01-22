@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 interface AuthContextType {
   user: User | null;
@@ -23,23 +23,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setLoading(false);
+      return;
+    }
+
     // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase?.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     // Listen for changes on auth state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth state changed:', _event, session?.user);
+    const { data: { subscription } } = supabase?.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
-    });
+    }) || { data: { subscription: { unsubscribe: () => {} } } };
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (identifier: string, password: string) => {
+    if (!supabase) throw new Error('Supabase is not configured');
+
     // First try to sign in with email
     let { error: emailError } = await supabase.auth.signInWithPassword({
       email: identifier,
@@ -73,8 +79,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     firstname: string; 
     birthdate?: string;
   }) => {
+    if (!supabase) throw new Error('Supabase is not configured');
+
     try {
-      // Vérifier si l'email existe déjà
+      // Check if email exists
       const { data: existingEmail } = await supabase
         .from('users')
         .select('email')
@@ -82,10 +90,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (existingEmail) {
-        throw new Error('Cet email est déjà utilisé');
+        throw new Error('This email is already in use');
       }
 
-      // Créer le compte utilisateur avec un username temporaire
+      // Create user account with temporary username
       const tempUsername = `user_${Math.random().toString(36).substring(2, 10)}`;
       
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -101,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (signUpError) throw signUpError;
 
-      // Créer l'enregistrement dans la table users
+      // Create record in users table
       const { error: insertError } = await supabase
         .from('users')
         .insert([{
@@ -116,16 +124,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error instanceof Error) {
         throw new Error(error.message);
       }
-      throw new Error('Une erreur est survenue lors de l\'inscription');
+      throw new Error('An error occurred during registration');
     }
   };
 
   const signOut = async () => {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   const resetPassword = async (email: string) => {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/update-password`,
     });
@@ -133,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePassword = async (password: string) => {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
   };
