@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Building2, MapPin, Phone, Mail, Globe, Users, Ruler, School as Pool, Waves, Accessibility, Edit } from 'lucide-react';
 import type { Venue } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
+import { GoogleMap } from '../../components/common/GoogleMap';
 
 const VenueDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +57,8 @@ const VenueDetails: React.FC = () => {
     );
   }
 
+  const fullAddress = `${venue.address}, ${venue.postal_code} ${venue.city}, ${venue.country}`;
+
   return (
     <div className="space-y-8">
       {/* Venue Header */}
@@ -103,6 +106,23 @@ const VenueDetails: React.FC = () => {
             <Edit className="h-5 w-5" />
             Edit Venue
           </button>
+        </div>
+      </div>
+
+      {/* Map */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Location</h2>
+        <GoogleMap address={fullAddress} className="mb-4" />
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600 dark:text-gray-400">{fullAddress}</p>
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Get Directions
+          </a>
         </div>
       </div>
 

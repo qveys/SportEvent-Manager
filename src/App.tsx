@@ -1,11 +1,22 @@
-import React from 'react'
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { NavigationLayout } from './components/navigation/NavigationLayout';
+import { AppRoutes } from './routes';
 
 function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <h1 className="text-2xl font-bold">Welcome to Vite + React!</h1>
-    </div>
-  )
+    <AuthProvider>
+      <ThemeProvider>
+        <BrowserRouter>
+          <NavigationLayout>
+            <AppRoutes />
+          </NavigationLayout>
+        </BrowserRouter>
+      </ThemeProvider>
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;

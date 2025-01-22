@@ -7,11 +7,11 @@ const ProfileSettings: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [formData, setFormData] = useState({
-    firstName: '',
-    name: '',
-    username: '',
-    email: '',
-    personId: '',
+    firstName: user?.user_metadata?.firstname || '',
+    name: user?.user_metadata?.name || '',
+    username: user?.user_metadata?.username || '',
+    email: user?.email || '',
+    personId: user?.user_metadata?.person_id || '',
   });
 
   useEffect(() => {
@@ -22,15 +22,40 @@ const ProfileSettings: React.FC = () => {
 
   const loadUserData = async () => {
     try {
+      // First check if user exists in users table
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('username, email, person_id')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (userError) throw userError;
 
-      if (userData) {
+      // If user doesn't exist in users table, create the record
+      if (!userData) {
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([{
+            id: user?.id,
+            email: user?.email,
+            username: user?.user_metadata?.username || `user_${Math.random().toString(36).substring(2, 10)}`,
+          }]);
+
+        if (insertError) throw insertError;
+        
+        // Reload user data after creation
+        const { data: newUserData, error: newUserError } = await supabase
+          .from('users')
+          .select('username, email, person_id')
+          .eq('id', user?.id)
+          .single();
+
+        if (newUserError) throw newUserError;
+        userData = newUserData;
+      }
+
+      // If we have a person_id, load person data
+      if (userData?.person_id) {
         const { data: personData, error: personError } = await supabase
           .from('persons')
           .select('name, firstname')
@@ -40,20 +65,46 @@ const ProfileSettings: React.FC = () => {
         if (personError) throw personError;
 
         if (personData) {
-          setFormData({
-            firstName: personData.firstname || '',
-            name: personData.name || '',
-            username: userData.username || '',
-            email: userData.email || '',
+          setFormData(prev => ({
+            ...prev,
+            firstName: personData.firstname,
+            name: personData.name,
+            username: userData.username,
+            email: userData.email,
             personId: userData.person_id,
-          });
+          }));
         }
+      } else {
+        // If no person record exists, create one
+        const { data: newPerson, error: createPersonError } = await supabase
+          .from('persons')
+          .insert([{
+            name: user?.user_metadata?.name || '',
+            firstname: user?.user_metadata?.firstname || '',
+          }])
+          .select()
+          .single();
+
+        if (createPersonError) throw createPersonError;
+
+        // Update user record with new person_id
+        const { error: updateUserError } = await supabase
+          .from('users')
+          .update({ person_id: newPerson.id })
+          .eq('id', user?.id);
+
+        if (updateUserError) throw updateUserError;
+
+        setFormData(prev => ({
+          ...prev,
+          personId: newPerson.id,
+        }));
       }
     } catch (error) {
       console.error('Error loading user data:', error);
       setMessage({
         type: 'error',
-        text: 'Erreur lors du chargement des données'
+        text: 'Error loading user data. Please try refreshing the page.'
       });
     }
   };

@@ -7,7 +7,7 @@ const Layout: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors">
       <Header isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
 
       <div className="flex pt-16">

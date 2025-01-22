@@ -2,41 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply bg-blue-50/40 dark:bg-gray-900 transition-colors;
+  }
+}
 
 @layer utilities {
-    /* Scrollbar styles */
-    .scrollbar-custom {
-      scrollbar-width: thin;
-      scrollbar-color: theme('colors.gray.300') transparent;
-    }
-  
-    .dark .scrollbar-custom {
-      scrollbar-color: theme('colors.gray.600') transparent;
-    }
-  
-    .scrollbar-custom::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-  
-    .scrollbar-custom::-webkit-scrollbar-track {
-      background: transparent;
-    }
-  
-    .scrollbar-custom::-webkit-scrollbar-thumb {
-      background-color: theme('colors.gray.300');
-      border-radius: theme('borderRadius.full');
-    }
-  
-    .dark .scrollbar-custom::-webkit-scrollbar-thumb {
-      background-color: theme('colors.gray.600');
-    }
-  
-    .scrollbar-custom::-webkit-scrollbar-thumb:hover {
-      background-color: theme('colors.gray.400');
-    }
-  
-    .dark .scrollbar-custom::-webkit-scrollbar-thumb:hover {
-      background-color: theme('colors.gray.500');
-    }
+  /* Scrollbar styles */
+  .scrollbar-custom {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.gray.300/30') transparent;
   }
+
+  .dark .scrollbar-custom {
+    scrollbar-color: theme('colors.gray.600/30') transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background-color: theme('colors.gray.300/30');
+    border-radius: theme('borderRadius.full');
+  }
+
+  .dark .scrollbar-custom::-webkit-scrollbar-thumb {
+    background-color: theme('colors.gray.600/30');
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background-color: theme('colors.gray.400/30');
+  }
+
+  .dark .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background-color: theme('colors.gray.500/30');
+  }
+}
